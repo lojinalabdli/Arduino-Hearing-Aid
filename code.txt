@@ -1,0 +1,37 @@
+#include <VirtualWire.h> 
+//Configuration 
+const int micPin = A1;  // Microphone input (Analog) 
+const int txPin = 0; // Transmitter pin (D0 / Pin 5) 
+const int sampleRate = 2000;  // Audio sampling rate (Hz) 
+const int sampleWindow = 1000 / sampleRate; // Delay between samples (ms) 
+void setup(){ 
+// Initialize VirtualWire 
+vw_set_tx_pin(txPin); // Set TX pin 
+vw_setup(sampleRate);  // Set data rate 
+pinMode(micPin, INPUT); 
+} 
+void loop (){ 
+// Sample microphone 
+int micValue = analogRead(micPin); // Range: 0–1023 
+micValue = constrain(micValue, 0, 1023); // Clamp range 
+// Compress to 8-bit 
+byte compressedValue = map(micValue, 0, 1023, 0, 255); 
+// Add simple error check (parity bit) 
+byte parity = (bitCount(compressedValue) % 2 == 0) ? 0x00 : 0x80; 
+byte dataToSend = compressedValue | parity; 
+ 
+// Send over RF 
+vw_send((uint8_t *)&dataToSend, 1); 
+vw_wait_tx(); // Wait until done 
+ 
+// Optional delay 
+delayMicroseconds(1000 * sampleWindow); 
+} 
+//Utility: Count 1-bits in byte (for parity) 
+int bitCount(byte b){ 
+int count = 0; 
+for (int i = 0; i < 8; i++) { 
+if (b & (1 << i)) count++; 
+} 
+return count; 
+} 
